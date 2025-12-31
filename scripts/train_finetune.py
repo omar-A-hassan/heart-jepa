@@ -191,6 +191,9 @@ class HeartJEPASegmentationModule(pl.LightningModule):
         self.log("val/acc", acc, prog_bar=True, sync_dist=True)
         return loss
 
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+
     def configure_optimizers(self):
         params = filter(lambda p: p.requires_grad, self.parameters())
         optimizer = torch.optim.AdamW(
