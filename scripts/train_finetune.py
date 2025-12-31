@@ -74,7 +74,7 @@ class HeartJEPAClassificationModule(pl.LightningModule):
 
     def _load_pretrained(self, checkpoint_path: str):
         """Load pretrained weights."""
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         state_dict = checkpoint.get("model_state_dict", checkpoint)
         # Load with strict=False to allow missing/extra keys
         missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
@@ -162,7 +162,7 @@ class HeartJEPASegmentationModule(pl.LightningModule):
 
     def _load_pretrained(self, checkpoint_path: str):
         """Load pretrained weights."""
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
         state_dict = checkpoint.get("model_state_dict", checkpoint)
         missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
         print(f"Loaded pretrained weights from {checkpoint_path}")
