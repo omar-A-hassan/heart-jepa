@@ -26,7 +26,7 @@ dependencies = [
     "matplotlib>=3.7.0",
     "tqdm>=4.65.0",
     "loguru>=0.7.0",
-    "lejepa",
+    "lejepa @ git+https://github.com/rbalestr-lab/lejepa.git",
 ]
 
 [project.optional-dependencies]
