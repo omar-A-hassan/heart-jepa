@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from heart_jepa.models import HeartJEPA
 from heart_jepa.losses import SIGReg, invariance_loss
-from heart_jepa.data.dataset import PCGDataset
+from heart_jepa.data.dataset import PhysioNetDataset
 from heart_jepa.data.augmentations import MultiViewTransform
 
 
@@ -158,12 +158,12 @@ class HeartJEPADataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         if stage == "fit" or stage is None:
-            self.train_dataset = PCGDataset(
+            self.train_dataset = PhysioNetDataset(
                 self.cfg.data_dir,
                 split="train",
                 transform=self.transform,
             )
-            self.val_dataset = PCGDataset(
+            self.val_dataset = PhysioNetDataset(
                 self.cfg.data_dir,
                 split="val",
                 transform=self.transform,
