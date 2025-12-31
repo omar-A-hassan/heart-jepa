@@ -72,5 +72,17 @@ save_top_k: 3
 # Reproducibility
 seed: 42
 
+# Fine-tuning
+task: "classification"  # or "segmentation"
+pretrained_checkpoint: null  # Path to pretrained checkpoint
+freeze_encoder: true
+finetune_epochs: 30
+finetune_lr: 1e-3
+finetune_batch_size: 32
+
+# Segmentation loss weights
+seg_ce_weight: 0.5
+seg_dice_weight: 0.5
+
 defaults:
   - _self_

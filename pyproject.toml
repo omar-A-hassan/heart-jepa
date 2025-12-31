@@ -43,8 +43,8 @@ train = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/omarhassan/heart-jepa"
-Repository = "https://github.com/omarhassan/heart-jepa"
+Homepage = "https://github.com/omar-A-hassan/heart-jepa"
+Repository = "https://github.com/omar-A-hassan/heart-jepa"
 
 [tool.hatch.build.targets.wheel]
 packages = ["heart_jepa"]

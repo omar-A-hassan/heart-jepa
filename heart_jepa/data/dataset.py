@@ -284,6 +284,122 @@ class PhysioNetDataset(Dataset):
         return 2  # Normal / Abnormal
 
 
+class SegmentationDataset(Dataset):
+    """
+    Dataset for PCG segmentation with pseudo-labels.
+
+    Wraps any PCG dataset and generates frame-level pseudo-labels
+    for S1, S2, Systole, Diastole segmentation.
+    """
+
+    def __init__(
+        self,
+        data_dir: Union[str, Path],
+        split: str = "train",
+        transform: Optional[Callable] = None,
+        sr: int = 2000,
+        duration: float = 5.0,
+        output_frames: int = 224,
+        config: Optional[dict] = None,
+    ):
+        """
+        Args:
+            data_dir: Directory containing audio files
+            split: Dataset split
+            transform: Transform to apply (should be TestTransform for single view)
+            sr: Target sample rate
+            duration: Duration per sample
+            output_frames: Number of output frames for labels
+            config: Spectrogram configuration
+        """
+        self.data_dir = Path(data_dir)
+        self.split = split
+        self.sr = sr
+        self.duration = duration
+        self.output_frames = output_frames
+        self.config = config or SPECTROGRAM_CONFIG
+
+        if transform is None:
+            self.transform = TestTransform(config=self.config)
+        else:
+            self.transform = transform
+
+        # Load file list from PhysioNet structure
+        self.samples = self._load_samples()
+
+        # Import pseudo-label generator
+        from ..utils.pseudo_labels import generate_pseudo_labels, validate_pseudo_labels
+        self.generate_pseudo_labels = generate_pseudo_labels
+        self.validate_pseudo_labels = validate_pseudo_labels
+
+    def _load_samples(self) -> List[Path]:
+        """Load sample file paths."""
+        samples = []
+        for subset_dir in sorted(self.data_dir.glob("training-*")):
+            for wav_file in subset_dir.glob("*.wav"):
+                samples.append(wav_file)
+
+        # Split data
+        total = len(samples)
+        train_end = int(0.8 * total)
+        val_end = int(0.9 * total)
+
+        np.random.seed(42)
+        indices = np.random.permutation(total)
+
+        if self.split == "train":
+            split_indices = indices[:train_end]
+        elif self.split == "val":
+            split_indices = indices[train_end:val_end]
+        else:
+            split_indices = indices[val_end:]
+
+        return [samples[i] for i in split_indices]
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get item with spectrogram and pseudo-labels.
+
+        Returns:
+            Tuple of (spectrogram, labels)
+            - spectrogram: (1, H, W)
+            - labels: (output_frames,) with class indices
+        """
+        file_path = self.samples[idx]
+
+        # Load PCG
+        pcg, _ = load_pcg(file_path, target_sr=self.sr, duration=self.duration)
+
+        # Pad or truncate
+        target_samples = int(self.duration * self.sr)
+        if len(pcg) < target_samples:
+            pcg = np.pad(pcg, (0, target_samples - len(pcg)), mode='constant')
+        else:
+            pcg = pcg[:target_samples]
+
+        # Preprocess for pseudo-label generation
+        pcg_clean = preprocess_pcg(pcg, self.sr)
+
+        # Generate pseudo-labels
+        labels = self.generate_pseudo_labels(
+            pcg_clean,
+            sr=self.sr,
+            output_frames=self.output_frames,
+        )
+
+        # Apply transform to get spectrogram
+        spec = self.transform(pcg, self.sr)
+
+        return spec, torch.from_numpy(labels).long()
+
+    @property
+    def num_classes(self) -> int:
+        return 7  # background, S1, systole, S2, diastole, S3, S4
+
+
 class CirCorDataset(Dataset):
     """
     Dataset for CirCor DigiScope Phonocardiogram Dataset.
