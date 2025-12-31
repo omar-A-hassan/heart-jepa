@@ -161,12 +161,12 @@ class HeartJEPADataModule(pl.LightningDataModule):
             self.train_dataset = PCGDataset(
                 self.cfg.data_dir,
                 split="train",
-                n_views=self.cfg.n_views,
+                transform=self.transform,
             )
             self.val_dataset = PCGDataset(
                 self.cfg.data_dir,
                 split="val",
-                n_views=self.cfg.n_views,
+                transform=self.transform,
             )
 
     def train_dataloader(self):
