@@ -109,6 +109,9 @@ class HeartJEPAClassificationModule(pl.LightningModule):
         self.log("val/f1", self.val_f1, sync_dist=True)
         return loss
 
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+
     def configure_optimizers(self):
         # Only optimize unfrozen parameters
         params = filter(lambda p: p.requires_grad, self.parameters())
