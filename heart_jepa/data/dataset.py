@@ -187,27 +187,107 @@ class PhysioNetDataset(Dataset):
         self.samples, self.labels = self._load_data()
 
     def _check_exists(self) -> bool:
-        """Check if data exists."""
-        return (self.data_dir / "training-a").exists()
+        """Check if data exists (directory with wav files)."""
+        training_a = self.data_dir / "training-a"
+        return training_a.exists() and any(training_a.glob("*.wav"))
+
+    @classmethod
+    def download(cls, data_dir: Union[str, Path]) -> int:
+        """
+        Download PhysioNet data without creating a dataset instance.
+        
+        Args:
+            data_dir: Directory to store data
+            
+        Returns:
+            Total number of WAV files downloaded/found
+            
+        Example:
+            >>> PhysioNetDataset.download("data/physionet2016")
+            >>> # Then later create dataset
+            >>> dataset = PhysioNetDataset("data/physionet2016", split="train")
+        """
+        data_dir = Path(data_dir)
+        # Create a minimal instance just to run _download
+        instance = object.__new__(cls)
+        instance.data_dir = data_dir
+        instance.PHYSIONET_URL = cls.PHYSIONET_URL
+        instance._download()
+        
+        # Return total count
+        total = len(list(data_dir.glob("**/*.wav")))
+        print(f"\nTotal WAV files: {total}")
+        return total
 
     def _download(self):
-        """Download PhysioNet data using wfdb."""
+        """Download PhysioNet data using wfdb with retry logic."""
         import wfdb
+        import time
+        import urllib.request
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        def download_with_retry(db_name: str, output_dir: Path, max_retries: int = 5, base_delay: float = 2.0) -> bool:
+            """Download with exponential backoff retry."""
+            for attempt in range(max_retries):
+                try:
+                    wfdb.dl_database(db_name, str(output_dir))
+                    return True
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # 2, 4, 8, 16, 32 seconds
+                        print(f"  Error: {e}")
+                        print(f"  Retrying in {delay:.0f}s... (attempt {attempt + 2}/{max_retries})")
+                        time.sleep(delay)
+                    else:
+                        print(f"  Failed after {max_retries} attempts: {e}")
+                        return False
+            return False
+
+        def download_file_with_retry(url: str, path: Path, max_retries: int = 5, base_delay: float = 2.0) -> bool:
+            """Download a single file with exponential backoff retry."""
+            for attempt in range(max_retries):
+                try:
+                    urllib.request.urlretrieve(url, str(path))
+                    return True
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        print(f"  Error: {e}")
+                        print(f"  Retrying in {delay:.0f}s... (attempt {attempt + 2}/{max_retries})")
+                        time.sleep(delay)
+                    else:
+                        print(f"  Failed after {max_retries} attempts: {e}")
+                        return False
+            return False
 
         # Download training sets a-f
         for subset in ['a', 'b', 'c', 'd', 'e', 'f']:
             db_name = f"challenge-2016/training-{subset}"
             output_dir = self.data_dir / f"training-{subset}"
 
-            if not output_dir.exists():
-                print(f"Downloading {db_name}...")
-                try:
-                    wfdb.dl_database(db_name, str(output_dir))
-                except Exception as e:
-                    print(f"Error downloading {db_name}: {e}")
-                    print("You may need to download manually from PhysioNet")
+            # Skip if directory exists AND has wav files
+            if output_dir.exists() and any(output_dir.glob("*.wav")):
+                print(f"training-{subset}: exists")
+            else:
+                print(f"Downloading training-{subset}...")
+                success = download_with_retry(db_name, output_dir)
+                if success:
+                    print(f"   training-{subset} downloaded successfully")
+                else:
+                    print("  You may need to download manually from PhysioNet")
+                    continue
+
+            # Download REFERENCE.csv if not present
+            ref_file = output_dir / "REFERENCE.csv"
+            if not ref_file.exists():
+                ref_url = f"{self.PHYSIONET_URL}training-{subset}/REFERENCE.csv"
+                print(f"  Downloading REFERENCE.csv for training-{subset}...")
+                success = download_file_with_retry(ref_url, ref_file)
+                if success:
+                    print(f"  REFERENCE.csv downloaded")
+                else:
+                    print(f"  Failed to download REFERENCE.csv")
 
     def _load_data(self) -> Tuple[List[Path], List[int]]:
         """Load file paths and labels."""
