@@ -262,27 +262,24 @@ class PhysioNetDataset(Dataset):
             return False
 
         # Download training sets a-f
+        # Let wfdb handle resume/skip logic - it checks file sizes and resumes partial downloads
         for subset in ['a', 'b', 'c', 'd', 'e', 'f']:
             db_name = f"challenge-2016/training-{subset}"
             output_dir = self.data_dir / f"training-{subset}"
 
-            # Skip if directory exists AND has wav files
-            if output_dir.exists() and any(output_dir.glob("*.wav")):
-                print(f"training-{subset}: exists")
+            print(f"Downloading training-{subset}...")
+            success = download_with_retry(db_name, output_dir)
+            if success:
+                print(f"   training-{subset} done")
             else:
-                print(f"Downloading training-{subset}...")
-                success = download_with_retry(db_name, output_dir)
-                if success:
-                    print(f"   training-{subset} downloaded successfully")
-                else:
-                    print("  You may need to download manually from PhysioNet")
-                    continue
+                print("  You may need to download manually from PhysioNet")
+                continue
 
             # Download REFERENCE.csv if not present
             ref_file = output_dir / "REFERENCE.csv"
             if not ref_file.exists():
                 ref_url = f"{self.PHYSIONET_URL}training-{subset}/REFERENCE.csv"
-                print(f"  Downloading REFERENCE.csv for training-{subset}...")
+                print(f"  Downloading REFERENCE.csv...")
                 success = download_file_with_retry(ref_url, ref_file)
                 if success:
                     print(f"  REFERENCE.csv downloaded")
