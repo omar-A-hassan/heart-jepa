@@ -54,10 +54,12 @@ warmup_epochs: 5
 optimizer: "adamw"
 scheduler: "cosine"
 
-# Device
+# Device & Distributed Training
 accelerator: "auto"  # auto-detect MPS/CUDA/CPU
-devices: 1
-precision: 32
+devices: "auto"           # Set to "auto" for all GPUs, or specific number (2, 4, etc.)
+strategy: "auto"     # "auto" for single GPU, "ddp" for multi-GPU, "ddp_find_unused_parameters_true" if needed
+precision: "bf16-mixed" # Use "16-mixed" or "bf16-mixed" for faster training with mixed precision
+sync_batchnorm: true # Sync BatchNorm across GPUs (important for multi-GPU)
 
 # Logging
 wandb_project: null  # Set to enable WandB

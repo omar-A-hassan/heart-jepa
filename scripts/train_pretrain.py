@@ -225,17 +225,21 @@ def main(cfg: DictConfig):
     else:
         logger = TensorBoardLogger("tb_logs", name="heart-jepa")
 
-    # Trainer
+    # Trainer with distributed training support
     trainer = pl.Trainer(
         accelerator=cfg.accelerator,
         devices=cfg.devices,
+        strategy=cfg.strategy,
         precision=cfg.precision,
+        sync_batchnorm=cfg.sync_batchnorm if cfg.devices != 1 else False,
         max_epochs=cfg.max_epochs,
         callbacks=callbacks,
         logger=logger,
         log_every_n_steps=cfg.log_every_n_steps,
         val_check_interval=cfg.val_check_interval,
         gradient_clip_val=1.0,
+        # Distributed training optimizations
+        use_distributed_sampler=True,  # Automatically shard data across GPUs
     )
 
     # Train

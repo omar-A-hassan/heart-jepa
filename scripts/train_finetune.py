@@ -335,16 +335,19 @@ def main(cfg: DictConfig):
     else:
         logger = TensorBoardLogger("tb_logs", name=f"heart-jepa-{task}")
 
-    # Trainer
+    # Trainer with distributed training support
     trainer = pl.Trainer(
         accelerator=cfg.accelerator,
         devices=cfg.devices,
+        strategy=cfg.strategy,
         precision=cfg.precision,
+        sync_batchnorm=cfg.sync_batchnorm if cfg.devices != 1 else False,
         max_epochs=cfg.finetune_epochs,
         callbacks=callbacks,
         logger=logger,
         log_every_n_steps=cfg.log_every_n_steps,
         gradient_clip_val=1.0,
+        use_distributed_sampler=True,
     )
 
     # Train
